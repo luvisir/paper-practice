@@ -1,0 +1,24 @@
+import assert from 'node:assert/strict';
+import{readFile}from'node:fs/promises';
+const {default:worker}=await import('data:text/javascript;base64,'+Buffer.from('const ASSETS={};\n'+await readFile('worker/index.js','utf8')).toString('base64'));
+const values=new Map();const env={BUCKET:{async get(k){const v=values.get(k);return v===undefined?null:{json:async()=>JSON.parse(v)}},async put(k,v){values.set(k,v)}}};
+let family='',session='';async function call(path,data,opts={}){const headers={'Origin':'https://test.site','Cookie':[family,opts.noSession?'':session].filter(Boolean).join('; ')};if(data!==undefined)headers['Content-Type']='application/json';if(opts.origin)headers.Origin=opts.origin;const r=await worker.fetch(new Request('https://test.site/api/'+path,{method:data===undefined?'GET':'POST',headers,body:data===undefined?undefined:JSON.stringify(data)}),env);const c=r.headers.get('set-cookie');if(c?.startsWith('paperly_family='))family=c.split(';')[0];if(c?.startsWith('paperly_parent='))session=c.split(';')[0];return{status:r.status,body:await r.json()}}
+assert.equal((await call('parent/review/load',{document:'test'})).status,401);
+assert.equal((await call('parent/setup',{pin:'123456'},{origin:'https://evil.site'})).status,403);
+assert.equal((await call('parent/setup',{pin:'123456'})).status,200);
+assert.equal((await call('parent/status')).body.configured,true);
+assert.equal((await call('parent/unlock',{pin:'654321'})).status,401);
+assert.equal((await call('parent/unlock',{pin:'123456'})).status,200);
+assert.equal((await call('parent/status')).body.unlocked,true);
+const report={document:'test',released:false,marks:[{id:'a',x:.5,y:.6,label:'第1题',status:'wrong',answer:'4',reason:'算错了'}]};
+assert.equal((await call('parent/review/save',report)).status,200);
+assert.equal((await call('child/review?document=test')).body.marks.length,0);
+assert.equal((await call('parent/review/save',{...report,released:true})).status,200);
+const child=(await call('child/review?document=test')).body.marks[0];assert.equal(child.answer,undefined);assert.equal(child.reason,undefined);assert.equal(child.label,'第1题');
+assert.equal((await call('parent/review/load',{document:'test'},{noSession:true})).status,401);
+assert.equal((await call('parent/grade',{})).status,503);
+assert.equal((await call('parent/lock',{})).status,200);
+assert.equal((await call('parent/review/load',{document:'test'})).status,401);
+for(let i=0;i<5;i++)await call('parent/unlock',{pin:'111111'});
+assert.equal((await call('parent/unlock',{pin:'123456'})).status,429);
+console.log('PASS: setup, origin checks, server password verification, private reports, child answer filtering, logout, five-failure lockout, honest AI unavailable state');
