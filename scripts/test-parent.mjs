@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import{readFile}from'node:fs/promises';
-const {default:worker}=await import('data:text/javascript;base64,'+Buffer.from('const ASSETS={};\n'+await readFile('worker/index.js','utf8')).toString('base64'));
+const {default:worker}=await import('data:text/javascript;base64,'+Buffer.from('const ASSETS={};\n'+await readFile('worker/grading.js','utf8')+'\n'+await readFile('worker/index.js','utf8')).toString('base64'));
 const values=new Map();const env={BUCKET:{async get(k){const v=values.get(k);return v===undefined?null:{json:async()=>JSON.parse(v)}},async put(k,v){values.set(k,v)}}};
 let family='',session='';async function call(path,data,opts={}){const headers={'Origin':'https://test.site','Cookie':[family,opts.noSession?'':session].filter(Boolean).join('; ')};if(data!==undefined)headers['Content-Type']='application/json';if(opts.origin)headers.Origin=opts.origin;const r=await worker.fetch(new Request('https://test.site/api/'+path,{method:data===undefined?'GET':'POST',headers,body:data===undefined?undefined:JSON.stringify(data)}),env);const c=r.headers.get('set-cookie');if(c?.startsWith('paperly_family='))family=c.split(';')[0];if(c?.startsWith('paperly_parent='))session=c.split(';')[0];return{status:r.status,body:await r.json()}}
 assert.equal((await call('parent/review/load',{document:'test'})).status,401);
