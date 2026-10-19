@@ -12,7 +12,7 @@ const result=await call('parent/grade',body);assert.equal(result.status,200);ass
 assert.equal((await call('parent/grade',body)).status,429);
 for(const k of map.keys())if(k.startsWith('ai-usage/'))map.delete(k);
 globalThis.fetch=async()=>Response.json({error:{code:'credit_balance_exhausted',type:'insufficient_quota'}},{status:429});
-const quota=await call('parent/grade',body);assert.equal(quota.status,429);assert(quota.body.error.includes('额度不足'));
+const quota=await call('parent/grade',body);assert.equal(quota.status,429);assert(quota.body.error.includes('额度不足'));assert.equal(quota.body.code,'AI_QUOTA');
 for(const k of map.keys())if(k.startsWith('ai-usage/'))map.delete(k);
 globalThis.fetch=async()=>{await call('parent/lock',{});return Response.json({status:'completed',output:[{content:[{type:'output_text',text:'{"summary":"测试","marks":[]}'}]}]})};
 assert.equal((await call('parent/grade',body)).status,401);
