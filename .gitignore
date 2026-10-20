@@ -13,3 +13,5 @@ keystore.properties
 *.apk
 *.aab
 artifacts/
+android/app/src/main/assets/web/
+android/.signing/

@@ -1,0 +1,26 @@
+import {cp,readFile,writeFile,mkdir,rm,readdir} from 'node:fs/promises';
+import path from 'node:path';
+const output='android/app/src/main/assets/web';
+await mkdir(path.dirname(output),{recursive:true});await rm(output,{recursive:true,force:true});
+await cp('web',output,{recursive:true,filter:p=>!p.endsWith('.DS_Store')});
+let html=await readFile(output+'/index.html','utf8');
+html=html.replace('<title>纸上 · 试卷练习台</title>','<title>纸上作业 · 离线版</title>').replace('<body>','<body class="android-offline">');
+html=html.replace('<script src="assets/pdf.min.js"></script>','<script src="android-bridge.js"></script><script src="assets/pdf.min.js"></script>');
+html=html.replace('我的练习台','离线作业本').replace('本地处理 · 安心书写','断网可用 · 安心书写').replace('每个浏览器独立设置；','每台平板独立设置；').replace('密码由服务器验证。','密码由本机应用验证。');
+html=html.replace('尚未接入国内可直连的 AI 服务','尚未接入国内可直连的 AI 服务');
+// No remote billing or consent controls in a fully offline app.
+html=html.replace('<label class="ai-consent">','<label class="ai-consent" hidden>').replace('<p class="ai-privacy">','<p class="ai-privacy" hidden>');
+html=html.replace('只展示题号和需订正的位置，答案与讲解保持隐藏。','只展示题号和需订正的位置，答案与讲解保存在本机家长区。');
+html=html.replace('<a class="brand">▱ <b>纸上</b><small>PAPERLY</small></a>','<a class="brand"><img src="assets/app-logo.png" alt="纸上作业"><b>纸上</b><small>离线作业本</small></a>');
+await cp('android/app/src/main/res/drawable-nodpi/app_logo.png',output+'/assets/app-logo.png');
+await writeFile(output+'/index.html',html);
+let parent=await readFile(output+'/parent.js','utf8');
+parent=parent.replace("async function parentAPI(path,data,signal){", "async function parentAPI(path,data,signal){return offlineParentAPI(path,data,signal)}\nasync function unusedWebsiteParentAPI(path,data,signal){");
+parent=parent.replace("网站暂未配置 AI 服务，可先由家长手动批改。", "离线版不连接原网站，尚未接入国内 AI 服务。可以在本机手动批改和发布订正标记。").replace("AI 服务暂不可用", "离线家长批改");
+parent=parent.replace("navigator.sendBeacon('/api/parent/lock',new Blob(['{}'],{type:'application/json'}))", "offlineParentAPI('parent/lock',{}).catch(()=>{})");
+parent=parent.replace("if(aiBusy||!parentUnlocked)return;if(!$('aiConsent')", "if(aiBusy||!parentUnlocked)return;if(!aiReady){showAIFailure({message:'当前是离线答题版，尚未接入国内可直连的 AI 服务。可先手动批改。',code:'AI_NOT_CONFIGURED'});return}if(!$('aiConsent')");
+await writeFile(output+'/parent.js',parent);
+await cp('android/bridge.js',output+'/android-bridge.js');
+await writeFile(output+'/style.css',(await readFile(output+'/style.css','utf8'))+'\nbody.android-offline{overscroll-behavior:none}body.android-offline #export{display:block!important}body.android-offline .privacy{font-size:10px}body.android-offline #aiGrade:disabled{opacity:.6}body.android-offline .ai-consent,body.android-offline .ai-privacy{display:none!important}\n@media(pointer:coarse){body.android-offline button{min-height:40px}body.android-offline #toolset button{min-height:48px}}\n@media(max-width:700px){body.android-offline header{flex-wrap:wrap;height:auto;min-height:64px;padding:7px}body.android-offline header button{padding:8px 5px}body.android-offline .brand{font-size:19px}body.android-offline main{height:calc(100dvh - 70px)}}\n');
+await writeFile(output+'/style.css',(await readFile(output+'/style.css','utf8'))+'\nbody.android-offline .brand img{width:36px;height:36px;border-radius:8px;object-fit:contain}body.android-offline main{height:calc(var(--paperly-height,100vh) - var(--paperly-header,78px))}\n');
+console.log('Android offline assets prepared; no credentials copied');

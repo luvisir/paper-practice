@@ -26,3 +26,31 @@ node scripts/validate-artifact.mjs
 `dist/` 是生成产物，不直接编辑。`node scripts/preview.mjs` 启动仅在内存模拟 R2 的本地预览。
 
 `scripts/test-ai-live.mjs` 是显式调用真实 API 的可选测试，需要环境中已有密钥以及 `/tmp/paperly-ai-{original,answered,ink}.png` 三张人工生成的数学练习测试图。仅对本地测试使用 Python HTTPS 传输以兼容本机网络；线上 Worker 使用标准 fetch。
+
+## 安卓平板离线版
+
+`android/` 为原生 Android WebView 应用，界面和 PDF/图片处理资源全部打包到 APK。应用不申请联网、相机、麦克风或广泛存储权限，通过系统文件选择器导入 PDF/图片，通过系统保存窗口导出答卷。
+
+- 支持导入多页 PDF 与图片、书写/文字/图形、橡皮、撤销重做、自动保存、PNG/PDF 导出。
+- 家长密码和批改记录保存在应用私有区域，原生代码校验密码；进入后台立即锁定，连续输错五次锁定五分钟。
+- 离线版可以手动批改并仅向孩子展示订正位置。AI 自动批改尚未接入国内可直连服务，离线版不调用原 Sites 域名或 OpenAI。
+- 安卓版不会包含 OpenAI 密钥，也不会把网站的服务器代码打包到设备。
+- 桌面、启动、应用详情和应用内标识使用用户提供的图。通知大图使用原图，小图提供同主题透明单色资源；本版本不主动发送通知。
+- Android 7.0 及以上，依赖系统 WebView 支持现代网页语法。小度学习平板可能需要家长允许安装第三方 APK；尚未在该型号真机验证。
+- 网页与 App 的作业、家长密码独立，不会自动跨设备同步。卸载 App 会清除本机作业，请先导出需要保留的答卷。
+
+### 本地打包
+
+需 Node.js、JDK 17、Android SDK 35。在 `android/local.properties` 设置 `sdk.dir`，此文件已排除 Git。
+
+```
+node scripts/create-android-signing.mjs
+cd android
+./gradlew assembleRelease lintRelease
+```
+
+构建时自动从 `web/` 同步离线资源。签名密钥在 `android/.signing/`，密码配置在 `android/keystore.properties`，均仅保留在本机并排除 Git。今后覆盖更新必须保留并使用同一签名密钥，勿上传到仓库。
+
+图标源图：`android/branding/app-logo.png`。已提交各密度图标，需要重新生成时使用安装了 Pillow 的 Python 运行 `scripts/prepare-android-icons.py`。
+
+上传前可运行 `node scripts/check-secrets.mjs --history`，检查源码和全部历史提交；该检查不会输出密钥值。

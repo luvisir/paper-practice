@@ -1,0 +1,42 @@
+plugins { id 'com.android.application' }
+
+def localSigning = new Properties()
+def signingFile = rootProject.file('keystore.properties')
+if (signingFile.exists()) signingFile.withInputStream { localSigning.load(it) }
+
+android {
+    namespace 'com.luvisir.paperpractice'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'com.luvisir.paperpractice'
+        minSdk 24
+        targetSdk 35
+        versionCode 1
+        versionName '1.0.0'
+    }
+    signingConfigs {
+        if (signingFile.exists()) {
+            release {
+                storeFile rootProject.file(localSigning['storeFile'])
+                storePassword localSigning['storePassword']
+                keyAlias localSigning['keyAlias']
+                keyPassword localSigning['keyPassword']
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (signingFile.exists()) signingConfig signingConfigs.release
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+tasks.register('syncWebAssets', Exec) {
+    workingDir rootProject.projectDir.parentFile
+    commandLine 'node', 'scripts/prepare-android.mjs'
+}
+tasks.named('preBuild').configure { dependsOn 'syncWebAssets' }
