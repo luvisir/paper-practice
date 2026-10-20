@@ -17,6 +17,7 @@
 
 ```
 node --check web/parent.js
+node scripts/test-gestures.cjs
 node scripts/test-parent.mjs
 node scripts/test-grading.mjs
 node scripts/build.mjs
@@ -54,3 +55,9 @@ cd android
 图标源图：`android/branding/app-logo.png`。已提交各密度图标，需要重新生成时使用安装了 Pillow 的 Python 运行 `scripts/prepare-android-icons.py`。
 
 上传前可运行 `node scripts/check-secrets.mjs --history`，检查源码和全部历史提交；该检查不会输出密钥值。
+
+## v1.1.0 触控与手机布局
+
+支持单指书写、双指拖动试卷、双指捏合缩放（50%–800%），缩放围绕两指中心。第二根手指加入会取消未完成笔迹，手势结束后需重新落笔，避免误写。手机提供页码选择与可横向滑动的工具栏。
+
+改动前的回滚标签为 `v1.0.0`（`b231be4`），已同步 GitHub。可从该标签恢复源码；安卓覆盖降级需另行处理版本号，勿通过卸载丢失作业。
